@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -6,6 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 
 public class JobsController : ControllerBase
 {
+    private readonly AppDbContext _context;
+
+    public JobsController(AppDbContext context)
+    {
+        _context = context;
+    }
+    /*
     private static List<Job> jobs = new List<Job>
     {
         new Job
@@ -33,19 +41,38 @@ public class JobsController : ControllerBase
             Salary = 45000
         }
     };
+    */
 
     [HttpGet]
-    public ActionResult<List<Job>> GetAll() => jobs;
+    public ActionResult<List<Job>> GetAll()
+    {
+        return _context.Jobs.ToList();
+    }
 
     [HttpGet("{id}")]
     public ActionResult<Job> GetById(int id)
     {
-        var job = jobs.FirstOrDefault(j=>j.Id == id);
-        return job != null? Ok(job) : NotFound();
+        var job = _context.Jobs.FirstOrDefault(j => j.Id == id);
+        return job != null ? Ok(job) : NotFound();
     }
 
+    [HttpGet("high-salary")]
+     public ActionResult<List<Job>> GetBySalary()
+    {
+        var jobs = _context.Jobs.Where(j => j.Salary >= 50000).ToList();
+        return Ok(jobs);
+    }
+
+    [HttpGet("jaipur")]
+    public ActionResult<List<Job>> GetByLocation()
+    {
+        var jobs = _context.Jobs.Where(j => j.Location == "Jaipur").ToList();
+        return Ok(jobs);   
+    }
+
+
     [HttpPost]
-    public ActionResult<Job> Create(CreateJobDto dto)
+    public async Task<ActionResult<Job>> Create(CreateJobDto dto)
     {
         // 1. Create a new Job
         // 2. Give it an Id
@@ -54,28 +81,28 @@ public class JobsController : ControllerBase
         // 5. Return the created job
 
         var newJob = new Job();
-        
-         newJob.Id = jobs.Count + 1;
-        
+
         newJob.Title = dto.Title;
         newJob.Company = dto.Company;
         newJob.Location = dto.Location;
         newJob.Salary = dto.Salary;
-        
-        jobs.Add(newJob);
-        
+
+        _context.Jobs.Add(newJob);
+
+        await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = newJob.Id} , newJob);
     }
 
+
     [HttpPut("{id}")]
-    public ActionResult<Job> Update(int id, UpdateJobDto dto)
+    public async Task<ActionResult<Job>> Update(int id, UpdateJobDto dto)
     {
         // 1. Find existing job
         // 2. If it doesn't exist → NotFound()
         // 3. Update its properties using dto
         // 4. Return updated job
 
-        var job = jobs.FirstOrDefault(j=>j.Id == id);
+        var job = _context.Jobs.FirstOrDefault(j=>j.Id == id);
         if (job == null)
         {
             // return 404
@@ -87,18 +114,19 @@ public class JobsController : ControllerBase
         job.Location = dto.Location;
         job.Salary = dto.Salary;
 
+        await _context.SaveChangesAsync();
         return Ok(job);
     }
-
+ 
     [HttpDelete("{id}")]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
         // find job
         // if not found
         // remove job
         // return response
 
-        var job = jobs.FirstOrDefault(j=>j.Id == id);
+        var job = _context.Jobs.FirstOrDefault(j=>j.Id == id);
 
         if (job == null)
         {
@@ -106,8 +134,8 @@ public class JobsController : ControllerBase
             return NotFound();
         }
 
-        jobs.Remove(job);
-
+        _context.Jobs.Remove(job);
+        await _context.SaveChangesAsync();
         return NoContent();
-    }
+    } 
 }
